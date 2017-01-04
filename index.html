@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Keep on Coding</title>
+    <link rel="shortcut icon" type="image/png" href="http://localhost:8000/favicon.png">
+    <link rel="shortcut icon" type="image/x-icon" href="http://localhost:8000/favicon.ico">
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/screen.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/print.css" type="text/css" media="print" />
+    <meta name="generator" content="Pelican" />
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li class="selected"><a href="http://localhost:8000/">Home</a></li>
+            </ul>
+        </nav>
+        <div class="header_box">
+            <h1><a href="http://localhost:8000/">Keep on Coding</a></h1>
+            <h2>by Steven Mercatante</h2>
+        </div>
+    </header>
+    <div id="wrapper">
+        <div id="content">            <h4 class="date">Dec 30, 2016</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/building-a-command-line-web-scraper-in-elixir.html" rel="bookmark" title="Permanent Link to &quot;Building a Command Line Web Scraper in Elixir&quot;">Building a Command Line Web Scraper in Elixir</a>
+                </h2>
+
+                
+                
+
+                <h1>Introduction</h1>
+<p>As a programmer, two of the most useful tools in my day-to-day work are the terminal and a bowl of hot soup. As the weather gets colder, I get soup almost daily from a local <a href="https://www.haleandhearty.com">Hale and Hearty</a> location. After realizing how often I was going to their website to view the menu, I decided to do what any self respecting programmer would do and wrote a command line application to print the list of a specific location's daily soups right in my terminal.</p>
+<p>I used this as an opportunity to become more familiar with the Elixir programming language. I find that building small command line applications is a great way to learn a new language while also creating something useful. </p>
+<p>By the end of this tutorial, you'll have built your own command line web scraper in Elixir from start to finish. You'll be able to just type <code>./soup</code> and be presented with a list of delicious (and sometimes nutritious) bowls of goodness.</p>
+<h1>Spec'ing Out Our App</h1>
+<p>Our app just needs to print the list of soups for a given location. However, we must tell it which one we care about, and we also want to set a default, because once you have a favorite location you'll probably want to view their menu in the future. I'm not going to go to one location one day, and then another the next day - that'd be crazy. </p>
+<p>Our app should have the following API:</p>
+<ul>
+<li><code>./soup --locations</code>: Display a list of all the locations, and ask you to save a default.</li>
+<li><code>./soup</code>: Display the list of soups for your default location.</li>
+</ul>
+<p>If you run <code>./soup</code> without having set a default location, you should be prompted to select a default. </p>
+<p>We can break this down with the following flow chart:</p>
+<p><img alt="flowchart" src="http://localhost:8000/images/soup-flowchart.png"></p>
+<h1>Let's Start Building!</h1>
+<p>Create a new Elixir app and <code>cd</code> into its directory:</p>
+<div class="highlight"><pre><span></span>$ mix new soup
+$ <span class="nb">cd</span> soup
+</pre></div>
+
+
+<p>We'll need to add two dependencies:</p>
+<ul>
+<li><a href="https://github.com/edgurgel/httpoison">HTTPoison</a>: an HTTP client</li>
+<li><a href="https://github.com/philss/floki">Floki</a>: a simple HTML parser</li>
+</ul>
+<p>Open up <code>mix.exs</code> and add the following dependencies:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup.Mixfile</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">defp</span> <span class="n">deps</span> <span class="k">do</span>
+    <span class="p">[</span>
+        <span class="p">{</span><span class="ss">:httpoison</span><span class="p">,</span> <span class="s2">&quot;~&gt; 0.10.0&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="ss">:floki</span><span class="p">,</span> <span class="s2">&quot;~&gt; 0.11.0&quot;</span><span class="p">}</span>
+    <span class="p">]</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>Install the dependencies:</p>
+<div class="highlight"><pre><span></span>$ mix deps.get
+</pre></div>
+
+
+<p>List <code>httpoison</code> as an application dependency:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup.Mixfile</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">def</span> <span class="n">application</span> <span class="k">do</span>
+        <span class="p">[</span><span class="ss">applications</span><span class="p">:</span> <span class="p">[</span><span class="ss">:logger</span><span class="p">,</span> <span class="ss">:httpoison</span><span class="p">]]</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<h1>Scraping the Data</h1>
+<p>The scraping logic is the most important part of our app, so let's start there. Our first task will be to fetch a list of the locations that we can display to the user.</p>
+<h2>Fetch the List of Locations</h2>
+<p>Create <code>lib/scraper.ex</code> and add the following:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Scraper</span> <span class="k">do</span>
+
+    <span class="na">@doc</span> <span class="sh">&quot;&quot;&quot;</span>
+<span class="sh">    Fetch a list of all of the Hale and Hearty locations.</span>
+<span class="sh">    &quot;&quot;&quot;</span>
+    <span class="kd">def</span> <span class="n">get_locations</span><span class="p">()</span> <span class="k">do</span>
+        <span class="k">case</span> <span class="nc">HTTPoison</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://www.haleandhearty.com/locations/&quot;</span><span class="p">)</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">response</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="k">case</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="k">do</span>
+                    <span class="mi">200</span> <span class="o">-&gt;</span>
+                        <span class="n">locations</span> <span class="o">=</span> 
+                            <span class="n">response</span><span class="o">.</span><span class="n">body</span>
+                            <span class="o">|&gt;</span> <span class="nc">Floki</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;.location-card&quot;</span><span class="p">)</span>
+                            <span class="o">|&gt;</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="n">extract_location_name_and_id</span><span class="o">/</span><span class="mi">1</span><span class="p">)</span>
+                            <span class="o">|&gt;</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="ni">&amp;1</span><span class="o">.</span><span class="n">name</span> <span class="o">&lt;</span> <span class="ni">&amp;2</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+                        <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">locations</span><span class="p">}</span>   
+
+                    <span class="bp">_</span> <span class="o">-&gt;</span> <span class="ss">:error</span>
+                <span class="k">end</span>
+            <span class="bp">_</span> <span class="o">-&gt;</span> <span class="ss">:error</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>Let's break this function down:</p>
+<ul>
+<li>
+<p>We first make a <code>GET</code> request to <a href="https://www.haleandhearty.com/locations/">https://www.haleandhearty.com/locations/</a> and pattern match on the response. If there was any type of error, we return an <code>:error</code> atom. </p>
+</li>
+<li>
+<p>Assuming we got back a valid response, we then pattern match on its status code. If it was anything other than <code>200</code>, we return an <code>:error</code> atom. </p>
+</li>
+<li>
+<p>Assuming we got back a <code>200</code> status code, we're ready to parse the HTML and extract the names and IDs of the locations. We do this by mapping the <code>extract_location_name_and_id/1</code> (which we'll implement soon) function over the <code>.location-card</code> elements. Each <code>.location-card</code> contains the name and ID of the location.</p>
+</li>
+<li>
+<p>We sort the locations alphabetically.</p>
+</li>
+<li>
+<p>The last thing we do is return a tuple of an <code>:ok</code> atom and the list of locations.</p>
+</li>
+</ul>
+<p><em>If you're wondering about the <code>&amp;</code> character above, read up on the <a href="http://elixir-lang.org/crash-course.html#partials-and-function-captures-in-elixir">capture operator</a>.</em> </p>
+<p>Implement <code>extract_location_name_and_id/1</code>:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Scraper</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">defp</span> <span class="n">extract_location_name_and_id</span><span class="p">({</span><span class="n">_tag</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">children</span><span class="p">})</span> <span class="k">do</span>
+        <span class="p">{</span><span class="bp">_</span><span class="p">,</span> <span class="bp">_</span><span class="p">,</span> <span class="p">[</span><span class="n">name</span><span class="p">]}</span> <span class="o">=</span> 
+            <span class="nc">Floki</span><span class="o">.</span><span class="n">raw_html</span><span class="p">(</span><span class="n">children</span><span class="p">)</span>
+            <span class="o">|&gt;</span> <span class="nc">Floki</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;.location-card__name&quot;</span><span class="p">)</span>
+            <span class="o">|&gt;</span> <span class="n">hd</span><span class="p">()</span>
+
+        <span class="n">attrs</span> <span class="o">=</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">into</span><span class="p">(</span><span class="n">attrs</span><span class="p">,</span> <span class="p">%{})</span>
+
+        <span class="p">%{</span><span class="ss">id</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="ss">name</span><span class="p">:</span> <span class="n">name</span><span class="p">}</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>The one argument is a destructured tuple of the tag name, attributes and children nodes. We convert the children back into HTML so we can use Floki to drill down further and grab the <code>.location-card__name</code> elements. <code>hd()</code> is used to grab the first element of the list, which happens to be the name of the location.</p>
+<p>Next we convert <code>attrs</code> from a list of tuples into a map, which makes it easier to pull out attributes by their name. Finally, we return a map of the locaton's name and ID.</p>
+<p>That was a lot of typing! Let's see if it works by trying it out in an interactive Elixir session:</p>
+<div class="highlight"><pre><span></span>$ iex -S mix
+iex&gt; Scraper.get_locations<span class="o">()</span>
+<span class="o">{</span>:ok,
+ <span class="o">[</span>%<span class="o">{</span>id: <span class="s2">&quot;17th-and-broadway&quot;</span>, name: <span class="s2">&quot;17th &amp; Broadway&quot;</span><span class="o">}</span>,
+  %<span class="o">{</span>id: <span class="s2">&quot;21st-and-6th&quot;</span>, name: <span class="s2">&quot;21st &amp; 6th&quot;</span><span class="o">}</span>,
+  %<span class="o">{</span>id: <span class="s2">&quot;29th-and-7th&quot;</span>, name: <span class="s2">&quot;29th &amp; 7th&quot;</span><span class="o">}</span>,
+  %<span class="o">{</span>id: <span class="s2">&quot;33rd-and-madison&quot;</span>, name: <span class="s2">&quot;33rd &amp; Madison&quot;</span><span class="o">}</span>,
+  ...
+<span class="o">]}</span>
+</pre></div>
+
+
+<p>You should see something similar to the above (I've omitted some of the results for the sake of brevity.) If not, you may have a typo in the above code.</p>
+<h2>Fetch the List of Soups</h2>
+<p>Now that we've got that working, let's fetch a list of soups for a given location. Fortunately this will be easier than fetching the list of locations. Add the following to <code>lib/scraper.ex</code>:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Scraper</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="na">@doc</span> <span class="sh">&quot;&quot;&quot;</span>
+<span class="sh">    Fetch a list of the daily soups for a given location.</span>
+<span class="sh">    &quot;&quot;&quot;</span>
+    <span class="kd">def</span> <span class="n">get_soups</span><span class="p">(</span><span class="n">location_id</span><span class="p">)</span> <span class="k">do</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://www.haleandhearty.com/menu/?location=</span><span class="si">#{</span><span class="n">location_id</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">case</span> <span class="nc">HTTPoison</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">response</span><span class="p">}</span> <span class="o">-&gt;</span> 
+                <span class="k">case</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="k">do</span>
+                    <span class="mi">200</span> <span class="o">-&gt;</span>
+                        <span class="n">soups</span> <span class="o">=</span>
+                            <span class="n">response</span><span class="o">.</span><span class="n">body</span>
+                            <span class="c1"># Floki uses the CSS descendant selector for the below find() call</span>
+                            <span class="o">|&gt;</span> <span class="nc">Floki</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;div.category.soups p.menu-item__name&quot;</span><span class="p">)</span>
+                            <span class="o">|&gt;</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">fn</span><span class="p">({</span><span class="bp">_</span><span class="p">,</span> <span class="bp">_</span><span class="p">,</span> <span class="p">[</span><span class="n">soup</span><span class="p">]})</span> <span class="o">-&gt;</span> <span class="n">soup</span> <span class="k">end</span><span class="p">)</span>
+
+                        <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">soups</span><span class="p">}</span>
+
+                    <span class="bp">_</span> <span class="o">-&gt;</span> <span class="ss">:error</span>
+                <span class="k">end</span>
+
+            <span class="bp">_</span> <span class="o">-&gt;</span> <span class="ss">:error</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>Once again, let's break this function down:</p>
+<ul>
+<li>
+<p>Similar to <code>get_locations/0</code>, the first things we do are make a <code>GET</code> request and then do some pattern matching to make sure we got back a valid response.</p>
+</li>
+<li>
+<p>We then use <code>Floki.find/2</code> to find all the <code>p</code> tags with a <code>menu-item__name</code> class. The HTML actually has a bunch of these elements, but not all of them are for soups, so we tell Floki that we only care about the <code>p</code> tags that are descendents of <code>div</code> tags that have a <code>category</code> and <code>soups</code> class.</p>
+</li>
+<li>
+<p>Using <code>Enum.map/2</code>, we return a list of the soup names.</p>
+</li>
+<li>
+<p>We return a tuple of an <code>:ok</code> atom and the list of soups.</p>
+</li>
+</ul>
+<p>Let's test our new function:</p>
+<div class="highlight"><pre><span></span>$ iex -S mix
+iex&gt; Scraper.get_soups<span class="o">(</span><span class="s2">&quot;17th-and-broadway&quot;</span><span class="o">)</span>
+<span class="o">{</span>:ok,
+ <span class="o">[</span><span class="s2">&quot;7 Herb Bistro Chicken &quot;</span>, <span class="s2">&quot;Broccoli Cheddar&quot;</span>, <span class="s2">&quot;Chicken &amp; Sausage Jambalaya&quot;</span>,
+  <span class="s2">&quot;Chicken And Rice&quot;</span>, <span class="s2">&quot;Chicken Pot Pie&quot;</span>,
+  <span class="s2">&quot;Chicken Vegetable With Couscous Or Noodles&quot;</span>, <span class="s2">&quot;Classic Mac &amp; Cheese&quot;</span>,
+  <span class="s2">&quot;Crab &amp; Corn Chowder&quot;</span>, ...<span class="o">]}</span>
+</pre></div>
+
+
+<p>We've made a lot of progress! Let's build the command line interface.</p>
+<h1>Building the Command Line Interface</h1>
+<p><em>Note: I've adapted this style of writing the command line interface from the great <a href="https://pragprog.com/book/elixir/programming-elixir">Programming Elixir</a> book by Dave Thomas.</em></p>
+<p>The first thing we need to do is create a module that'll be called from the command line and can handle arguments.</p>
+<p>Create a new module, <code>lib/soup/cli.ex</code> and add the following:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup.CLI</span> <span class="k">do</span>
+
+    <span class="kd">def</span> <span class="n">main</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">do</span>
+        <span class="n">argv</span>
+        <span class="o">|&gt;</span> <span class="n">parse_args</span><span class="p">()</span>
+        <span class="o">|&gt;</span> <span class="n">process</span><span class="p">()</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p>The <code>main</code> function is what will be triggered when we call our application from the command line. Its sole purpose is to take in an arbitrary number of arguments (like <code>--help</code>), parse them into something our app understands, and then perform the appropriate action.</p>
+<p>Let's parse the arguments. Add the following to the <code>Soup.CLI</code> module:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup.CLI</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">def</span> <span class="n">parse_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span> <span class="k">do</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nc">OptionParser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+            <span class="n">argv</span><span class="p">,</span> 
+            <span class="ss">strict</span><span class="p">:</span> <span class="p">[</span><span class="ss">help</span><span class="p">:</span> <span class="ss">:boolean</span><span class="p">,</span> <span class="ss">locations</span><span class="p">:</span> <span class="ss">:boolean</span><span class="p">],</span> 
+            <span class="ss">alias</span><span class="p">:</span> <span class="p">[</span><span class="ss">h</span><span class="p">:</span> <span class="ss">:help</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">case</span> <span class="n">args</span> <span class="k">do</span>
+            <span class="p">{[</span><span class="ss">help</span><span class="p">:</span> <span class="no">true</span><span class="p">],</span> <span class="bp">_</span><span class="p">,</span> <span class="bp">_</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="ss">:help</span>
+
+            <span class="p">{[],</span> <span class="p">[],</span> <span class="p">[{</span><span class="s2">&quot;-h&quot;</span><span class="p">,</span> <span class="no">nil</span><span class="p">}]}</span> <span class="o">-&gt;</span>
+                <span class="ss">:help</span>
+
+            <span class="p">{[</span><span class="ss">locations</span><span class="p">:</span> <span class="no">true</span><span class="p">],</span> <span class="bp">_</span><span class="p">,</span> <span class="bp">_</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="ss">:list_locations</span>
+
+            <span class="p">{[],</span> <span class="p">[],</span> <span class="p">[]}</span> <span class="o">-&gt;</span>
+                <span class="ss">:list_soups</span>
+
+            <span class="bp">_</span> <span class="o">-&gt;</span>
+                <span class="ss">:invalid_arg</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p><code>parse_args/1</code> uses the built in <a href="https://hexdocs.pm/elixir/OptionParser.html">OptionParser module</a> to convert command line arguments into tuples. We then pattern match on these tuples and return an atom that will be passed to one of the <code>process/1</code> implementations defined below:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup.CLI</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">def</span> <span class="n">process</span><span class="p">(</span><span class="ss">:help</span><span class="p">)</span> <span class="k">do</span>
+        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span> <span class="sh">&quot;&quot;&quot;</span>
+<span class="sh">        soup --locations  </span><span class="err">#</span><span class="sh"> Select a default location whose soups you want to list</span>
+<span class="sh">        soup              </span><span class="err">#</span><span class="sh"> List the soups for a default location (you&#39;ll be prompted to select a default location if you haven&#39;t already)</span>
+<span class="sh">        &quot;&quot;&quot;</span>
+        <span class="nc">System</span><span class="o">.</span><span class="n">halt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">end</span>
+
+    <span class="kd">def</span> <span class="n">process</span><span class="p">(</span><span class="ss">:list_locations</span><span class="p">)</span> <span class="k">do</span>
+        <span class="nc">Soup</span><span class="o">.</span><span class="n">enter_select_location_flow</span><span class="p">()</span>
+    <span class="k">end</span>
+
+    <span class="kd">def</span> <span class="n">process</span><span class="p">(</span><span class="ss">:list_soups</span><span class="p">)</span> <span class="k">do</span>
+        <span class="nc">Soup</span><span class="o">.</span><span class="n">fetch_soup_list</span><span class="p">()</span>
+    <span class="k">end</span>
+
+    <span class="kd">def</span> <span class="n">process</span><span class="p">(</span><span class="ss">:invalid_arg</span><span class="p">)</span> <span class="k">do</span>
+        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Invalid argument(s) passed. See usage below:&quot;</span>
+        <span class="n">process</span><span class="p">(</span><span class="ss">:help</span><span class="p">)</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p>Let's test this out:</p>
+<div class="highlight"><pre><span></span>$ mix run -e <span class="s1">&#39;Soup.CLI.main([&quot;--help&quot;])&#39;</span>
+soup --locations  <span class="c1"># Select a default location whose soups you want to list</span>
+soup              <span class="c1"># List the soups for a default location (you&#39;ll be prompted to select a default location if you haven&#39;t already)</span>
+</pre></div>
+
+
+<p>I know what you're thinking: typing <code>mix run -e 'Soup.CLI.main(["--help"])'</code> doesn't seem very user-friendly. You're right; it's not. But we'll only be using it like this while we develop our app. The final product will be much more user-friendly, I promise.</p>
+<h1>Building the Main Module</h1>
+<p>Now that we've got our command line interface in place, we can focus on our main module. The first thing we want to do is to prompt the user to select a default location. Add the following to <code>lib/soup.ex</code>:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup</span> <span class="k">do</span>
+
+    <span class="kd">def</span> <span class="n">enter_select_location_flow</span><span class="p">()</span> <span class="k">do</span>
+        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;One moment while I fetch the list of locations...&quot;</span><span class="p">)</span>
+        <span class="k">case</span> <span class="nc">Scraper</span><span class="o">.</span><span class="n">get_locations</span><span class="p">()</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">locations</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">location</span><span class="p">}</span> <span class="o">=</span> <span class="n">ask_user_to_select_location</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
+                <span class="n">display_soup_list</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+
+            <span class="ss">:error</span> <span class="o">-&gt;</span>
+                <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;An unexpected error occurred. Please try again.&quot;</span><span class="p">)</span>
+        <span class="k">end</span>  
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>This function will be called if the user passes the <code>--locations</code> argument to the CLI, or if there's no default location set when calling the CLI without any arguments. It uses our <code>Scraper</code> module to fetch the list of locations and then pattern matches on the result. If <code>get_locations/1</code> returned an <code>:error</code> we print "An unexpected error occurred. Please try again.". Otherwise we:</p>
+<ul>
+<li>Ask the user to select a default location, and then,</li>
+<li>Display the list of soups for the location the user just selected</li>
+</ul>
+<p>Let's take a look at <code>ask_user_to_select_location/1</code>:</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="na">@config_file</span> <span class="s2">&quot;~/.soup&quot;</span>
+
+    <span class="na">@doc</span> <span class="sh">&quot;&quot;&quot;</span>
+<span class="sh">    Prompt the user to select a location whose soup list they want to view.</span>
+
+<span class="sh">    The location&#39;s name and ID will be saved to @config_file  for future lookups.</span>
+<span class="sh">    This function can only ever return a {:ok, location} tuple because an invalid</span>
+<span class="sh">    selection will result in this funtion being recursively called.</span>
+<span class="sh">    &quot;&quot;&quot;</span>
+    <span class="kd">def</span> <span class="n">ask_user_to_select_location</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span> <span class="k">do</span>
+        <span class="c1"># Print an indexed list of the locations</span>
+        <span class="n">locations</span>
+        <span class="o">|&gt;</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">with_index</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="o">|&gt;</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="k">fn</span><span class="p">({</span><span class="n">location</span><span class="p">,</span> <span class="n">index</span><span class="p">})</span> <span class="o">-&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot; </span><span class="si">#{</span><span class="n">index</span><span class="si">}</span><span class="s2"> - </span><span class="si">#{</span><span class="n">location</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">end</span><span class="p">)</span>
+
+        <span class="k">case</span> <span class="nc">IO</span><span class="o">.</span><span class="n">gets</span><span class="p">(</span><span class="s2">&quot;Select a location number: &quot;</span><span class="p">)</span> <span class="o">|&gt;</span> <span class="nc">Integer</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span> <span class="k">do</span>
+            <span class="ss">:error</span> <span class="o">-&gt;</span>
+                <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;Invalid selection. Try again.&quot;</span><span class="p">)</span>
+                <span class="n">ask_user_to_select_location</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
+
+            <span class="p">{</span><span class="n">location_nb</span><span class="p">,</span> <span class="bp">_</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="k">case</span> <span class="nc">Enum</span><span class="o">.</span><span class="n">at</span><span class="p">(</span><span class="n">locations</span><span class="p">,</span> <span class="n">location_nb</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">do</span>
+                    <span class="no">nil</span> <span class="o">-&gt;</span>
+                        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;Invalid location number. Try again.&quot;</span><span class="p">)</span>
+                        <span class="n">ask_user_to_select_location</span><span class="p">(</span><span class="n">locations</span><span class="p">)</span>
+
+                    <span class="n">location</span> <span class="o">-&gt;</span>
+                        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;You&#39;ve selected the </span><span class="si">#{</span><span class="n">location</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> location.&quot;</span><span class="p">)</span>
+
+                        <span class="nc">File</span><span class="o">.</span><span class="n">write!</span><span class="p">(</span><span class="nc">Path</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="na">@config_file</span><span class="p">),</span> <span class="n">to_string</span><span class="p">(</span><span class="ss">:erlang</span><span class="o">.</span><span class="n">term_to_binary</span><span class="p">(</span><span class="n">location</span><span class="p">)))</span>
+
+                        <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">location</span><span class="p">}</span>
+                <span class="k">end</span>
+        <span class="k">end</span>        
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p>Notice the <code>@config_file "~/.soup"</code> line - this is a <a href="http://elixir-lang.org/getting-started/module-attributes.html">module attribute</a>. It refers to the location of the local file in which we'll save our default location. </p>
+<p>The first thing <code>ask_user_to_select_location/1</code> does is take the list of locations, and prints them in the following format:</p>
+<div class="highlight"><pre><span></span> 1 - 17th &amp; Broadway
+ 2 - 21st &amp; 6th
+ 3 - 29th &amp; 7th
+ 4 - 33rd &amp; Madison
+ ...
+</pre></div>
+
+
+<p>According to the <a href="https://hexdocs.pm/elixir/Enum.html#with_index/2">docs</a> for <code>Enum.with_index/2</code>, this function:</p>
+<blockquote>
+<p>Returns the enumerable with each element wrapped in a tuple alongside its index.</p>
+<p>If an offset is given, we will index from the given offset instead of from zero.</p>
+</blockquote>
+<p>Since it returns a list of each location wrapped in a tuple with a number, we can iterate over this using <code>Enum.each/2</code> to print out each location with the number we've assigned it.</p>
+<p>We then use <code>IO.gets/1</code> to ask the user to select a location. If they've entered a valid value (an integer that's in range of the list), we confirm their selection, save the location name and ID to <code>@config_file</code>, and return a <code>{:ok, location}</code> tuple. If they've made an invalid selection, we ask them to try again.</p>
+<p>Notice the use of <code>:erlang.term_to_binary/1</code>. Because Elixir is a hosted language and Erlang already provides functions to serialize and unserialize data, we call the Erlang <a href="http://erlang.org/doc/man/erlang.html#term_to_binary-1">function</a> directly.</p>
+<p>The last step needed to complete <code>enter_select_location_flow/0</code> is to implement <code>display_soup_list/1</code>.</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">def</span> <span class="n">display_soup_list</span><span class="p">(</span><span class="n">location</span><span class="p">)</span> <span class="k">do</span>
+        <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;One moment while I fetch today&#39;s soup list for </span><span class="si">#{</span><span class="n">location</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+        <span class="k">case</span> <span class="nc">Scraper</span><span class="o">.</span><span class="n">get_soups</span><span class="p">(</span><span class="n">location</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">soups</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="nc">Enum</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">soups</span><span class="p">,</span> <span class="o">&amp;</span><span class="p">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot; - &quot;</span> <span class="o">&lt;&gt;</span> <span class="ni">&amp;1</span><span class="p">))</span>
+            <span class="bp">_</span> <span class="o">-&gt;</span>
+                <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;Unexpected error. Try again, or select a location using `soup --locations`&quot;</span><span class="p">)</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+
+<p>We pass this function a <code>location</code> map (which if you remember contains the location's name and ID). We fetch the list of soups for that location using <code>Scraper.get_soups/1</code> and pattern match on the result. If we get back a <code>{:ok, soups}</code> tuple we iterate over <code>soups</code> and print each one. Otherwise we alert the user that an unexpected error has occurred and ask them to try again.</p>
+<p>Let's try what we've built so far. Run this in your terminal: <code>mix run -e 'Soup.CLI.main(["--locations"])'</code> and you should see something like the below:</p>
+<div class="highlight"><pre><span></span>One moment while I fetch the list of locations...
+ 1 - 17th &amp; Broadway
+ 2 - 21st &amp; 6th
+ 3 - 29th &amp; 7th
+ 4 - 33rd &amp; Madison
+ ...
+Select a location number:
+</pre></div>
+
+
+<p>When it asks you to <code>Select a location number:</code>, enter <code>3</code> and you should then see something similar to:</p>
+<div class="highlight"><pre><span></span>Select a location number: 3
+You&#39;ve selected the 29th &amp; 7th location.
+One moment while I fetch today&#39;s soup list for 29th &amp; 7th...
+ - Chicken Vegetable With Couscous Or Noodles
+ - Cream of Tomato with Chicken And Orzo
+ - Ten Vegetable
+ - Three Lentil Chili
+ - Tomato Basil With Rice
+</pre></div>
+
+
+<p>Success!</p>
+<p>Let's move on to building the functionality to fetch the list of soups if a default location has been set. First we need a function to fetch the location's name and ID.</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="na">@doc</span> <span class="sh">&quot;&quot;&quot;</span>
+<span class="sh">    Fetch the name and ID of the location that was saved by `ask_user_to_select_location/1`</span>
+<span class="sh">    &quot;&quot;&quot;</span>
+    <span class="kd">def</span> <span class="n">get_saved_location</span><span class="p">()</span> <span class="k">do</span>
+        <span class="k">case</span> <span class="nc">Path</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="na">@config_file</span><span class="p">)</span> <span class="o">|&gt;</span> <span class="nc">File</span><span class="o">.</span><span class="n">read</span><span class="p">()</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">location</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="k">try</span> <span class="k">do</span>
+                    <span class="n">location</span> <span class="o">=</span> <span class="ss">:erlang</span><span class="o">.</span><span class="n">binary_to_term</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+
+                    <span class="k">case</span> <span class="nc">String</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">location</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">do</span>
+                        <span class="c1"># File contains empty location ID</span>
+                        <span class="s2">&quot;&quot;</span> <span class="o">-&gt;</span> <span class="p">{</span><span class="ss">:empty_location_id</span><span class="p">}</span>
+
+                        <span class="bp">_</span> <span class="o">-&gt;</span> <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">location</span><span class="p">}</span>
+                    <span class="k">end</span>
+                <span class="k">rescue</span>
+                    <span class="n">e</span> <span class="ow">in</span> <span class="nc">ArgumentError</span> <span class="o">-&gt;</span> <span class="n">e</span>
+                <span class="k">end</span>
+
+            <span class="p">{</span><span class="ss">:error</span><span class="p">,</span> <span class="bp">_</span><span class="p">}</span> <span class="o">-&gt;</span> <span class="ss">:error</span>
+        <span class="k">end</span>        
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p>We use <code>Path.expand/1</code> (<a href="https://hexdocs.pm/elixir/Path.html#expand/1">docs</a>) to transform a path like <code>~/.soup</code> into the absolute path of <code>/Users/steven/.soup</code>. Next we read the contents of <code>@config_file</code> and attempt to unserialize the location's data using Erlang's <code>binary_to_term/1</code> function. If the unserialization is successful, we return a tuple of an <code>:ok</code> atom and the unserialized <code>location</code> map, otherwise we return an <code>:error</code> atom. A failure to unserialize the data likely means that the user manually edited the file's contents.</p>
+<div class="highlight"><pre><span></span><span class="kd">defmodule</span> <span class="nc">Soup</span> <span class="k">do</span>
+
+    <span class="n">...</span>
+
+    <span class="kd">def</span> <span class="n">fetch_soup_list</span><span class="p">()</span> <span class="k">do</span>
+        <span class="k">case</span> <span class="n">get_saved_location</span><span class="p">()</span> <span class="k">do</span>
+            <span class="p">{</span><span class="ss">:ok</span><span class="p">,</span> <span class="n">location</span><span class="p">}</span> <span class="o">-&gt;</span>
+                <span class="n">display_soup_list</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+
+            <span class="bp">_</span> <span class="o">-&gt;</span>
+                <span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p">(</span><span class="s2">&quot;It looks like you haven&#39;t selected a default location. Select one now:&quot;</span><span class="p">)</span>
+                <span class="n">enter_select_location_flow</span><span class="p">()</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+
+<span class="k">end</span>    
+</pre></div>
+
+
+<p>This is a pretty simple function. We call <code>get_saved_location/1</code> and match on its return value. If we get back a <code>location</code> map we display the list of soups for that location, otherwise we prompt the user to select a location. This acts as a catch-all for the following error conditions:</p>
+<ul>
+<li><code>@config_file</code> can't be read for whatever reason</li>
+<li>the location data in <code>@config_file</code> couldn't be unserialized for whatever reason</li>
+</ul>
+<p>Time to try it out. In your terminal, type: <code>mix run -e 'Soup.CLI.main([])'</code> and you should see something similar to:</p>
+<div class="highlight"><pre><span></span>One moment while I fetch today&#39;s soup list for 29th &amp; 7th...
+ - Chicken Vegetable With Couscous Or Noodles
+ - Cream of Tomato with Chicken And Orzo
+ - Ten Vegetable
+ - Three Lentil Chili
+ - Tomato Basil With Rice
+</pre></div>
+
+
+<h1>Creating an Executable File</h1>
+<p>Remember when I told you we'd make the process of using this app more user-friendly than typing something like <code>mix run -e 'Soup.CLI.main(["--locations"])'</code>? That's what we'll do now.</p>
+<p>We'll use escript to do this. From the Elixir <a href="https://hexdocs.pm/mix/master/Mix.Tasks.Escript.Build.html">docs</a>:</p>
+<blockquote>
+<p>An escript is an executable that can be invoked from the command line. An escript can run on any machine that has Erlang installed and by default does not require Elixir to be installed, as Elixir is embedded as part of the escript.</p>
+</blockquote>
+<p>Open up your <code>mix.exs</code> file and add the following line to the <code>project</code> macro block:</p>
+<div class="highlight"><pre><span></span><span class="ss">escript</span><span class="p">:</span> <span class="p">[</span><span class="ss">main_module</span><span class="p">:</span> <span class="nc">Soup.CLI</span><span class="p">],</span>
+</pre></div>
+
+
+<p>The entire macro should look something like the following:</p>
+<div class="highlight"><pre><span></span>  <span class="kd">def</span> <span class="n">project</span> <span class="k">do</span>
+    <span class="p">[</span><span class="ss">app</span><span class="p">:</span> <span class="ss">:soup</span><span class="p">,</span>
+     <span class="ss">version</span><span class="p">:</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+     <span class="ss">elixir</span><span class="p">:</span> <span class="s2">&quot;~&gt; 1.3&quot;</span><span class="p">,</span>
+     <span class="ss">build_embedded</span><span class="p">:</span> <span class="nc">Mix</span><span class="o">.</span><span class="n">env</span> <span class="o">==</span> <span class="ss">:prod</span><span class="p">,</span>
+     <span class="ss">start_permanent</span><span class="p">:</span> <span class="nc">Mix</span><span class="o">.</span><span class="n">env</span> <span class="o">==</span> <span class="ss">:prod</span><span class="p">,</span>
+     <span class="ss">escript</span><span class="p">:</span> <span class="p">[</span><span class="ss">main_module</span><span class="p">:</span> <span class="nc">Soup.CLI</span><span class="p">],</span>
+     <span class="ss">deps</span><span class="p">:</span> <span class="n">deps</span><span class="p">]</span>
+  <span class="k">end</span>
+</pre></div>
+
+
+<p>Now we just need to build the executable. Run this in your terminal:</p>
+<div class="highlight"><pre><span></span>$ mix escript.build
+</pre></div>
+
+
+<p>You should now see a <code>soup</code> executable in your project directory. Try it out with the following commands:</p>
+<div class="highlight"><pre><span></span>$ ./soup --help
+$ ./soup -h
+$ ./soup --locations
+$ ./soup
+</pre></div>
+
+
+<p>And there we go, a fully functional command line web scraper written in Elixir. Now go out and eat soup until you burst!</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/building-a-command-line-web-scraper-in-elixir.html">posted at 00:00</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/elixir.html" rel="tag">Elixir</a>
+                </div>
+		<a href="http://localhost:8000/building-a-command-line-web-scraper-in-elixir.html#disqus_thread">Click to read and post comments</a>
+            </article>            <h4 class="date">Oct 09, 2014</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html" rel="bookmark" title="Permanent Link to &quot;Python List and Dict Comprehensions for PHP Developers&quot;">Python List and Dict Comprehensions for PHP Developers</a>
+                </h2>
+
+                
+                
+
+                <p>When moving from PHP to Python, your experience with many of the basic language features and constructs are easily carried over. Sure, the syntax is different, but not radically so. Things like loop constructs, basic data structures and even OOP don't take long to feel familiar. One area where this is not true, however, is Python's list and dict comprehensions. PHP doesn't have an equivalent here, and in my opinion, this is an area where Python really shines in terms of functionality, ease of use and succinctness. </p>
+<p>In this post, I'll explain what list and dict comprehensions are, and show side-by-side examples of PHP and Python to demonstrate how and why you'd use them.</p>
+<p>First, the definition from the official <a href="https://docs.python.org/2/tutorial/datastructures.html#list-comprehensions">docs</a>:</p>
+<blockquote>
+<p>"List comprehensions provide a concise way to create lists. Common applications are to make new lists where each element is the result of some operations applied to each member of another sequence or iterable, or to create a subsequence of those elements that satisfy a certain condition."</p>
+</blockquote>
+<p>Let's begin with a simple example. We'll use an array of associative arrays in PHP and a list of dicts in Python to represent (some of) Pink Floyd's discography.</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$albums</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1967</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1970</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1973</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1977</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1979</span><span class="p">]];</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">albums</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1967</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1970</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1973</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1977</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1979</span><span class="p">}]</span>
+</pre></div>
+
+
+<p>The first thing we want to do is grab a list of just the album names:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$album_names</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$albums</span> <span class="k">as</span> <span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$album_names</span><span class="p">[]</span> <span class="o">=</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="c1">// or, preferably using array_map()...</span>
+<span class="nv">$album_names</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Every PHP developer should be intimately familiar with the above. For developers new to Python, it's natural to do something like this:</p>
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">album_names</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">:</span>
+    <span class="n">album_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p>But, there's an easier (and arguably better) way to do this, using a list comprehension:</p>
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">album_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+</pre></div>
+
+
+<p>Try this out in your REPL of choice and you'll end up with:</p>
+<div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">]</span>
+</pre></div>
+
+
+<p>In Python, a list comprehension takes the following form:</p>
+<div class="highlight"><pre><span></span>[(expression) (for clause) (zero or more if statements)]
+</pre></div>
+
+
+<p>Say we wanted to return a list of lists, where each inner list contains two elements: the year first and then the album name:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$by_year_name</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">by_year_name</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+<span class="c1"># [[1967, &#39;The Piper at the Gates of Dawn&#39;], [1970, &#39;Atom Heart Mother&#39;], [1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;], [1979, &#39;The Wall&#39;]]</span>
+</pre></div>
+
+
+<p>Only want albums released after 1970?</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$filtered</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+    <span class="p">}</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">filtered</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">]</span>
+<span class="c1"># [[1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;], [1979, &#39;The Wall&#39;]]</span>
+</pre></div>
+
+
+<p>Don't like 'The Wall'?</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$filtered</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span> <span class="o">&amp;&amp;</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+    <span class="p">}</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="c1"># We&#39;ll move the if statements to a new line for the sake of readability</span>
+<span class="n">filtered</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> 
+            <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span> <span class="ow">and</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">]</span>
+<span class="c1"># [[1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;]]</span>
+</pre></div>
+
+
+<p>By now you should see how much more terse the Python examples are compared to PHP. This continues to hold true as your logic becomes more complex.</p>
+<p>So, what are dict comprehensions? Turns out they're like list comprehensions, but create dicts instead (shocking, I know.)</p>
+<p>Let's index the albums by year, but only for those that were released before 1973:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$indexed</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$albums</span> <span class="k">as</span> <span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1973</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$indexed</span><span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">indexed</span> <span class="o">=</span> <span class="p">{</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1973</span><span class="p">}</span>
+<span class="c1"># {1970: &#39;Atom Heart Mother&#39;, 1967: &#39;The Piper at the Gates of Dawn&#39;}</span>
+</pre></div>
+
+
+<p>The syntax may look different, but it still follows the form of:</p>
+<div class="highlight"><pre><span></span>[(expression) (for clause) (zero or more if statements)]
+</pre></div>
+
+
+<p>You can work with dicts in list comprehensions, and vice versa. Let's return the original list of dicts, but with an uppercased version of the album names:</p>
+<div class="highlight"><pre><span></span><span class="n">uppercased</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]}</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+<span class="c1"># [{&#39;name&#39;: &#39;THE PIPER AT THE GATES OF DAWN&#39;, &#39;year&#39;: 1967}, {&#39;name&#39;: &#39;ATOM HEART MOTHER&#39;, &#39;year&#39;: 1970}, {&#39;name&#39;: &#39;THE DARK SIDE OF THE MOON&#39;, &#39;year&#39;: 1973}, {&#39;name&#39;: &#39;ANIMALS&#39;, &#39;year&#39;: 1977}, {&#39;name&#39;: &#39;THE WALL&#39;, &#39;year&#39;: 1979}]</span>
+</pre></div>
+
+
+<p>An important thing to remember is <em>the symbols on the outside of the comprehension determine what type of data structure you'll get back</em>. Square braces are used for list comprehensions, and curly brackets are used for dict comprehensions.</p>
+<p>Let's finish with one more example: returning a generator:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Notice how we use parens instead of square braces</span>
+<span class="n">album_gen</span> <span class="o">=</span> <span class="p">(</span><span class="n">album</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">)</span>
+<span class="c1"># &lt;generator object &lt;genexpr&gt; at 0x109d4ff50&gt;</span>
+</pre></div>
+
+
+<p>There's still alot more you can do with list and dict comprehensions that's outside the scope of this post. I'll leave it as an exercise for the reader to play around (hint: try nesting comprehensions or figuring out when you would want to use <a href="https://docs.python.org/2/library/functions.html#map"><code>map</code></a> or <a href="https://docs.python.org/2/library/functions.html#filter"><code>filter</code></a> instead of a comprehension.)</p>
+<p>List and dict comprehensions are a terrific feature of Python that I wish PHP had. They make working with data collections much easier. Add them to your arsenal and you'll be glad you did!</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html">posted at 00:00</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/python.html" rel="tag">Python</a>
+                </div>
+		<a href="http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html#disqus_thread">Click to read and post comments</a>
+            </article>            <h4 class="date">Sep 25, 2014</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html" rel="bookmark" title="Permanent Link to &quot;Publishing and Deploying for Pelican with Fabric&quot;">Publishing and Deploying for Pelican with Fabric</a>
+                </h2>
+
+                
+                
+
+                <p>I recently switched to <a href="http://blog.getpelican.com/">Pelican</a> to build this site. I'm very happy with
+everything it offers, but wanted to tweak how the site gets deployed to the remote server. This is where 
+<a href="http://www.fabfile.org/">Fabric</a> comes in. Fabric is a "library and command-line tool for streamlining the use of SSH 
+for application deployment or systems administration tasks." I've used Fabric for plenty of automation tasks before, so
+I knew it'd fit the bill perfectly.</p>
+<p>If you use the <code>pelican-quickstart</code> command, it offers to build a <code>fabfile.py</code> that comes with a <code>publish</code> method. I 
+just needed to change the default implementation; I wanted to push everything to GitHub and then have the remote server 
+pull down the changes. </p>
+<p>Here's what I ended up with:</p>
+<div class="highlight"><pre><span></span><span class="nd">@hosts</span><span class="p">(</span><span class="n">production</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">publish</span><span class="p">():</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;pelican -s publishconf.py&#39;</span><span class="p">)</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git add .&#39;</span><span class="p">)</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git commit -am &quot;Automated publish - {}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m/</span><span class="si">%d</span><span class="s1">/%Y %H:%M&#39;</span><span class="p">)))</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git push&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="n">dest_path</span><span class="p">):</span>
+        <span class="n">run</span><span class="p">(</span><span class="s2">&quot;git pull origin master&quot;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>(<code>dest_path</code> should already be defined in <code>fabfile.py</code> for you, but you'll need to <code>import time</code>.)</p>
+<p>I could've made it simpler by <code>rsync</code>ing the output directory, but I knew that I was going to keep a backup of 
+everything on GitHub, and I like the idea of keeping the entire project source on the remote server in case I ever want 
+to SSH in and make changes directly.</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html">posted at 20:43</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/automation.html" rel="tag">Automation</a>
+                </div>
+		<a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html#disqus_thread">Click to read and post comments</a>
+            </article>
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html" rel="bookmark" title="Permanent Link to &quot;Combining arrays in PHP using functional programming&quot;">Combining arrays in PHP using functional programming</a>
+                </h2>
+
+                
+                
+
+                <p>I recently had a use case where I needed to combine two arrays in PHP... </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Bob&#39;</span><span class="p">,</span> <span class="s1">&#39;Frank&#39;</span><span class="p">];</span>
+<span class="nv">$ages</span> <span class="o">=</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">54</span><span class="p">];</span>
+</pre></div>
+
+
+<p>... to end up with an array that looked like this:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="k">Array</span>
+<span class="p">(</span>
+    <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="k">Array</span>
+        <span class="p">(</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="nx">Bob</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="mi">23</span>
+        <span class="p">)</span>
+
+    <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="k">Array</span>
+        <span class="p">(</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="nx">Frank</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="mi">54</span>
+        <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+
+
+<p>In python, I'd just use the <a href="https://docs.python.org/2/library/functions.html#zip">zip</a> function - I wanted something
+similar in PHP. The solution was to pass <code>null</code> as the first argument to 
+<a href="http://php.net/manual/en/function.array-map.php"><code>array_map</code></a>:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">null</span><span class="p">,</span> <span class="nv">$people</span><span class="p">,</span> <span class="nv">$ages</span><span class="p">);</span>
+</pre></div>
+
+
+<p>For comparison's sake, here's how you'd achieve this without using <code>array_map</code>:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$tmp_people</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$people</span> <span class="k">as</span> <span class="nv">$k</span> <span class="o">=&gt;</span> <span class="nv">$v</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$tmp_people</span><span class="p">[]</span> <span class="o">=</span> <span class="p">[</span><span class="nv">$v</span><span class="p">,</span> <span class="nv">$ages</span><span class="p">[</span><span class="nv">$k</span><span class="p">]];</span>
+<span class="p">}</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="nv">$tmp_people</span><span class="p">;</span>
+</pre></div>
+
+
+<p>PHP is far from a functional programming language when compared to the likes of Clojure, Erlang, Haskell or even python,
+but functional tools like <code>array_map</code> can certainly make everyday tasks easier.</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html">posted at 00:00</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/php.html" rel="tag">PHP</a>
+                </div>
+		<a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html#disqus_thread">Click to read and post comments</a>
+            </article>
+
+            <div class="clear"></div>
+            <footer>
+                <p>
+                <a href="https://github.com/jody-frankowski/blue-penguin">Blue Penguin</a> Theme
+                &middot;
+                Powered by <a href="http://getpelican.com">Pelican</a>
+            </footer>
+        </div>
+        <div class="clear"></div>
+    </div>
+</body>
+</html>

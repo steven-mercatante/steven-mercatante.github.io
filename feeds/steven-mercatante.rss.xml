@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel><title>Keep on Coding - Steven Mercatante</title><link>http://localhost:8000/</link><description>by Steven Mercatante</description><lastBuildDate>Fri, 30 Dec 2016 00:00:00 -0500</lastBuildDate><item><title>Building a Command Line Web Scraper in Elixir</title><link>http://localhost:8000/building-a-command-line-web-scraper-in-elixir.html</link><description>&lt;h1&gt;Introduction&lt;/h1&gt;
+&lt;p&gt;As a programmer, two of the most useful tools in my day-to-day work are the terminal and a bowl of hot soup. As the weather gets colder, I get soup almost daily from a local &lt;a href="https://www.haleandhearty.com"&gt;Hale and Hearty&lt;/a&gt; location. After realizing how often I was going to their website …&lt;/p&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Steven Mercatante</dc:creator><pubDate>Fri, 30 Dec 2016 00:00:00 -0500</pubDate><guid isPermaLink="false">tag:localhost,2016-12-30:/building-a-command-line-web-scraper-in-elixir.html</guid></item><item><title>Python List and Dict Comprehensions for PHP Developers</title><link>http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html</link><description>&lt;p&gt;When moving from PHP to Python, your experience with many of the basic language features and constructs are easily carried over. Sure, the syntax is different, but not radically so. Things like loop constructs, basic data structures and even OOP don't take long to feel familiar. One area where this …&lt;/p&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Steven Mercatante</dc:creator><pubDate>Thu, 09 Oct 2014 00:00:00 -0400</pubDate><guid isPermaLink="false">tag:localhost,2014-10-09:/python-list-and-dict-comprehensions-for-php-developers.html</guid></item><item><title>Publishing and Deploying for Pelican with Fabric</title><link>http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html</link><description>&lt;p&gt;I recently switched to &lt;a href="http://blog.getpelican.com/"&gt;Pelican&lt;/a&gt; to build this site. I'm very happy with
+everything it offers, but wanted to tweak how the site gets deployed to the remote server. This is where 
+&lt;a href="http://www.fabfile.org/"&gt;Fabric&lt;/a&gt; comes in. Fabric is a "library and command-line tool for streamlining the use of SSH 
+for application …&lt;/p&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Steven Mercatante</dc:creator><pubDate>Thu, 25 Sep 2014 20:43:00 -0400</pubDate><guid isPermaLink="false">tag:localhost,2014-09-25:/publishing-and-deploying-for-pelican-with-fabric.html</guid></item><item><title>Combining arrays in PHP using functional programming</title><link>http://localhost:8000/combining-arrays-in-php-using-functional-programming.html</link><description>&lt;p&gt;I recently had a use case where I needed to combine two arrays in PHP... &lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="cp"&gt;&amp;lt;?php&lt;/span&gt;
+&lt;span class="nv"&gt;$people&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;Bob&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;Frank&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;];&lt;/span&gt;
+&lt;span class="nv"&gt;$ages&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;23&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;54&lt;/span&gt;&lt;span class="p"&gt;];&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;... to end up with an array that looked like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="cp"&gt;&amp;lt;?php&lt;/span&gt;
+&lt;span class="k"&gt;Array&lt;/span&gt;
+&lt;span class="p"&gt;(&lt;/span&gt;
+    &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;Array&lt;/span&gt;
+        &lt;span class="p"&gt;(&lt;/span&gt;
+            &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="nx"&gt;Bob&lt;/span&gt;
+            &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="mi"&gt;23&lt;/span&gt;
+        &lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;Array&lt;/span&gt;
+        &lt;span class="p"&gt;(&lt;/span&gt;
+            &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="nx"&gt;Frank&lt;/span&gt;
+            &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="mi"&gt;54&lt;/span&gt;
+        &lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In python, I'd just …&lt;/p&gt;</description><dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Steven Mercatante</dc:creator><pubDate>Thu, 25 Sep 2014 00:00:00 -0400</pubDate><guid isPermaLink="false">tag:localhost,2014-09-25:/combining-arrays-in-php-using-functional-programming.html</guid></item></channel></rss>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Keep on Coding | Python List and Dict Comprehensions for PHP Developers</title>
+    <link rel="shortcut icon" type="image/png" href="http://localhost:8000/favicon.png">
+    <link rel="shortcut icon" type="image/x-icon" href="http://localhost:8000/favicon.ico">
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/screen.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/print.css" type="text/css" media="print" />
+    <meta name="generator" content="Pelican" />
+
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="http://localhost:8000/">Home</a></li>
+            </ul>
+        </nav>
+        <div class="header_box">
+            <h1><a href="http://localhost:8000/">Keep on Coding</a></h1>
+            <h2>by Steven Mercatante</h2>
+        </div>
+    </header>
+    <div id="wrapper">
+        <div id="content">            <h4 class="date">Oct 09, 2014</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html" rel="bookmark" title="Permanent Link to &quot;Python List and Dict Comprehensions for PHP Developers&quot;">Python List and Dict Comprehensions for PHP Developers</a>
+                </h2>
+
+                
+                
+
+                <p>When moving from PHP to Python, your experience with many of the basic language features and constructs are easily carried over. Sure, the syntax is different, but not radically so. Things like loop constructs, basic data structures and even OOP don't take long to feel familiar. One area where this is not true, however, is Python's list and dict comprehensions. PHP doesn't have an equivalent here, and in my opinion, this is an area where Python really shines in terms of functionality, ease of use and succinctness. </p>
+<p>In this post, I'll explain what list and dict comprehensions are, and show side-by-side examples of PHP and Python to demonstrate how and why you'd use them.</p>
+<p>First, the definition from the official <a href="https://docs.python.org/2/tutorial/datastructures.html#list-comprehensions">docs</a>:</p>
+<blockquote>
+<p>"List comprehensions provide a concise way to create lists. Common applications are to make new lists where each element is the result of some operations applied to each member of another sequence or iterable, or to create a subsequence of those elements that satisfy a certain condition."</p>
+</blockquote>
+<p>Let's begin with a simple example. We'll use an array of associative arrays in PHP and a list of dicts in Python to represent (some of) Pink Floyd's discography.</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$albums</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1967</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1970</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1973</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1977</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;name&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span> <span class="o">=&gt;</span> <span class="mi">1979</span><span class="p">]];</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">albums</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1967</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1970</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1973</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1977</span><span class="p">},</span>
+            <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">1979</span><span class="p">}]</span>
+</pre></div>
+
+
+<p>The first thing we want to do is grab a list of just the album names:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$album_names</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$albums</span> <span class="k">as</span> <span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$album_names</span><span class="p">[]</span> <span class="o">=</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="c1">// or, preferably using array_map()...</span>
+<span class="nv">$album_names</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Every PHP developer should be intimately familiar with the above. For developers new to Python, it's natural to do something like this:</p>
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">album_names</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">:</span>
+    <span class="n">album_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p>But, there's an easier (and arguably better) way to do this, using a list comprehension:</p>
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">album_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+</pre></div>
+
+
+<p>Try this out in your REPL of choice and you'll end up with:</p>
+<div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;The Piper at the Gates of Dawn&#39;</span><span class="p">,</span> <span class="s1">&#39;Atom Heart Mother&#39;</span><span class="p">,</span> <span class="s1">&#39;The Dark Side of the Moon&#39;</span><span class="p">,</span> <span class="s1">&#39;Animals&#39;</span><span class="p">,</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">]</span>
+</pre></div>
+
+
+<p>In Python, a list comprehension takes the following form:</p>
+<div class="highlight"><pre><span></span>[(expression) (for clause) (zero or more if statements)]
+</pre></div>
+
+
+<p>Say we wanted to return a list of lists, where each inner list contains two elements: the year first and then the album name:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$by_year_name</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">by_year_name</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+<span class="c1"># [[1967, &#39;The Piper at the Gates of Dawn&#39;], [1970, &#39;Atom Heart Mother&#39;], [1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;], [1979, &#39;The Wall&#39;]]</span>
+</pre></div>
+
+
+<p>Only want albums released after 1970?</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$filtered</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+    <span class="p">}</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">filtered</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">]</span>
+<span class="c1"># [[1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;], [1979, &#39;The Wall&#39;]]</span>
+</pre></div>
+
+
+<p>Don't like 'The Wall'?</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$filtered</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">function</span><span class="p">(</span><span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span> <span class="o">&amp;&amp;</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]];</span>
+    <span class="p">}</span>
+<span class="p">},</span> <span class="nv">$albums</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="c1"># We&#39;ll move the if statements to a new line for the sake of readability</span>
+<span class="n">filtered</span> <span class="o">=</span> <span class="p">[[</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">],</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> 
+            <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span> <span class="ow">and</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;The Wall&#39;</span><span class="p">]</span>
+<span class="c1"># [[1973, &#39;The Dark Side of the Moon&#39;], [1977, &#39;Animals&#39;]]</span>
+</pre></div>
+
+
+<p>By now you should see how much more terse the Python examples are compared to PHP. This continues to hold true as your logic becomes more complex.</p>
+<p>So, what are dict comprehensions? Turns out they're like list comprehensions, but create dicts instead (shocking, I know.)</p>
+<p>Let's index the albums by year, but only for those that were released before 1973:</p>
+<p>PHP:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$indexed</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$albums</span> <span class="k">as</span> <span class="nv">$album</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1973</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$indexed</span><span class="p">[</span><span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="nv">$album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">];</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>Python:</p>
+<div class="highlight"><pre><span></span><span class="n">indexed</span> <span class="o">=</span> <span class="p">{</span><span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1973</span><span class="p">}</span>
+<span class="c1"># {1970: &#39;Atom Heart Mother&#39;, 1967: &#39;The Piper at the Gates of Dawn&#39;}</span>
+</pre></div>
+
+
+<p>The syntax may look different, but it still follows the form of:</p>
+<div class="highlight"><pre><span></span>[(expression) (for clause) (zero or more if statements)]
+</pre></div>
+
+
+<p>You can work with dicts in list comprehensions, and vice versa. Let's return the original list of dicts, but with an uppercased version of the album names:</p>
+<div class="highlight"><pre><span></span><span class="n">uppercased</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]}</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span><span class="p">]</span>
+<span class="c1"># [{&#39;name&#39;: &#39;THE PIPER AT THE GATES OF DAWN&#39;, &#39;year&#39;: 1967}, {&#39;name&#39;: &#39;ATOM HEART MOTHER&#39;, &#39;year&#39;: 1970}, {&#39;name&#39;: &#39;THE DARK SIDE OF THE MOON&#39;, &#39;year&#39;: 1973}, {&#39;name&#39;: &#39;ANIMALS&#39;, &#39;year&#39;: 1977}, {&#39;name&#39;: &#39;THE WALL&#39;, &#39;year&#39;: 1979}]</span>
+</pre></div>
+
+
+<p>An important thing to remember is <em>the symbols on the outside of the comprehension determine what type of data structure you'll get back</em>. Square braces are used for list comprehensions, and curly brackets are used for dict comprehensions.</p>
+<p>Let's finish with one more example: returning a generator:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Notice how we use parens instead of square braces</span>
+<span class="n">album_gen</span> <span class="o">=</span> <span class="p">(</span><span class="n">album</span> <span class="k">for</span> <span class="n">album</span> <span class="ow">in</span> <span class="n">albums</span> <span class="k">if</span> <span class="n">album</span><span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1970</span><span class="p">)</span>
+<span class="c1"># &lt;generator object &lt;genexpr&gt; at 0x109d4ff50&gt;</span>
+</pre></div>
+
+
+<p>There's still alot more you can do with list and dict comprehensions that's outside the scope of this post. I'll leave it as an exercise for the reader to play around (hint: try nesting comprehensions or figuring out when you would want to use <a href="https://docs.python.org/2/library/functions.html#map"><code>map</code></a> or <a href="https://docs.python.org/2/library/functions.html#filter"><code>filter</code></a> instead of a comprehension.)</p>
+<p>List and dict comprehensions are a terrific feature of Python that I wish PHP had. They make working with data collections much easier. Add them to your arsenal and you'll be glad you did!</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/python-list-and-dict-comprehensions-for-php-developers.html">posted at 00:00</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/python.html" rel="tag">Python</a>
+                </div>
+            </article>
+            <div class="clear"></div>
+            <footer>
+                <p>
+                <a href="https://github.com/jody-frankowski/blue-penguin">Blue Penguin</a> Theme
+                &middot;
+                Powered by <a href="http://getpelican.com">Pelican</a>
+            </footer>
+        </div>
+        <div class="clear"></div>
+    </div>
+</body>
+</html>

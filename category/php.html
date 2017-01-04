@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Keep on Coding | articles in the "PHP" category</title>
+    <link rel="shortcut icon" type="image/png" href="http://localhost:8000/favicon.png">
+    <link rel="shortcut icon" type="image/x-icon" href="http://localhost:8000/favicon.ico">
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/screen.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/print.css" type="text/css" media="print" />
+    <meta name="generator" content="Pelican" />
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+
+                <li class="ephemeral selected"><a href="http://localhost:8000/category/php.html">PHP</a></li>
+                <li><a href="http://localhost:8000/">Home</a></li>
+            </ul>
+        </nav>
+        <div class="header_box">
+            <h1><a href="http://localhost:8000/">Keep on Coding</a></h1>
+            <h2>by Steven Mercatante</h2>
+        </div>
+    </header>
+    <div id="wrapper">
+        <div id="content">            <h4 class="date">Sep 25, 2014</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html" rel="bookmark" title="Permanent Link to &quot;Combining arrays in PHP using functional programming&quot;">Combining arrays in PHP using functional programming</a>
+                </h2>
+
+                
+                
+
+                <p>I recently had a use case where I needed to combine two arrays in PHP... </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Bob&#39;</span><span class="p">,</span> <span class="s1">&#39;Frank&#39;</span><span class="p">];</span>
+<span class="nv">$ages</span> <span class="o">=</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">54</span><span class="p">];</span>
+</pre></div>
+
+
+<p>... to end up with an array that looked like this:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="k">Array</span>
+<span class="p">(</span>
+    <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="k">Array</span>
+        <span class="p">(</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="nx">Bob</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="mi">23</span>
+        <span class="p">)</span>
+
+    <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="k">Array</span>
+        <span class="p">(</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="nx">Frank</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="mi">54</span>
+        <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+
+
+<p>In python, I'd just use the <a href="https://docs.python.org/2/library/functions.html#zip">zip</a> function - I wanted something
+similar in PHP. The solution was to pass <code>null</code> as the first argument to 
+<a href="http://php.net/manual/en/function.array-map.php"><code>array_map</code></a>:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">(</span><span class="k">null</span><span class="p">,</span> <span class="nv">$people</span><span class="p">,</span> <span class="nv">$ages</span><span class="p">);</span>
+</pre></div>
+
+
+<p>For comparison's sake, here's how you'd achieve this without using <code>array_map</code>:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$tmp_people</span> <span class="o">=</span> <span class="p">[];</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="nv">$people</span> <span class="k">as</span> <span class="nv">$k</span> <span class="o">=&gt;</span> <span class="nv">$v</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$tmp_people</span><span class="p">[]</span> <span class="o">=</span> <span class="p">[</span><span class="nv">$v</span><span class="p">,</span> <span class="nv">$ages</span><span class="p">[</span><span class="nv">$k</span><span class="p">]];</span>
+<span class="p">}</span>
+<span class="nv">$people</span> <span class="o">=</span> <span class="nv">$tmp_people</span><span class="p">;</span>
+</pre></div>
+
+
+<p>PHP is far from a functional programming language when compared to the likes of Clojure, Erlang, Haskell or even python,
+but functional tools like <code>array_map</code> can certainly make everyday tasks easier.</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html">posted at 00:00</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/php.html" rel="tag">PHP</a>
+                </div>
+		<a href="http://localhost:8000/combining-arrays-in-php-using-functional-programming.html#disqus_thread">Click to read and post comments</a>
+            </article>
+
+            <div class="clear"></div>
+            <footer>
+                <p>
+                <a href="https://github.com/jody-frankowski/blue-penguin">Blue Penguin</a> Theme
+                &middot;
+                Powered by <a href="http://getpelican.com">Pelican</a>
+            </footer>
+        </div>
+        <div class="clear"></div>
+    </div>
+</body>
+</html>

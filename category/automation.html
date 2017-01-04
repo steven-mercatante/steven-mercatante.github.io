@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Keep on Coding | articles in the "Automation" category</title>
+    <link rel="shortcut icon" type="image/png" href="http://localhost:8000/favicon.png">
+    <link rel="shortcut icon" type="image/x-icon" href="http://localhost:8000/favicon.ico">
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/screen.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="http://localhost:8000/theme/css/print.css" type="text/css" media="print" />
+    <meta name="generator" content="Pelican" />
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+
+                <li class="ephemeral selected"><a href="http://localhost:8000/category/automation.html">Automation</a></li>
+                <li><a href="http://localhost:8000/">Home</a></li>
+            </ul>
+        </nav>
+        <div class="header_box">
+            <h1><a href="http://localhost:8000/">Keep on Coding</a></h1>
+            <h2>by Steven Mercatante</h2>
+        </div>
+    </header>
+    <div id="wrapper">
+        <div id="content">            <h4 class="date">Sep 25, 2014</h4>
+
+            <article class="post">
+                <h2 class="title">
+                    <a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html" rel="bookmark" title="Permanent Link to &quot;Publishing and Deploying for Pelican with Fabric&quot;">Publishing and Deploying for Pelican with Fabric</a>
+                </h2>
+
+                
+                
+
+                <p>I recently switched to <a href="http://blog.getpelican.com/">Pelican</a> to build this site. I'm very happy with
+everything it offers, but wanted to tweak how the site gets deployed to the remote server. This is where 
+<a href="http://www.fabfile.org/">Fabric</a> comes in. Fabric is a "library and command-line tool for streamlining the use of SSH 
+for application deployment or systems administration tasks." I've used Fabric for plenty of automation tasks before, so
+I knew it'd fit the bill perfectly.</p>
+<p>If you use the <code>pelican-quickstart</code> command, it offers to build a <code>fabfile.py</code> that comes with a <code>publish</code> method. I 
+just needed to change the default implementation; I wanted to push everything to GitHub and then have the remote server 
+pull down the changes. </p>
+<p>Here's what I ended up with:</p>
+<div class="highlight"><pre><span></span><span class="nd">@hosts</span><span class="p">(</span><span class="n">production</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">publish</span><span class="p">():</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;pelican -s publishconf.py&#39;</span><span class="p">)</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git add .&#39;</span><span class="p">)</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git commit -am &quot;Automated publish - {}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m/</span><span class="si">%d</span><span class="s1">/%Y %H:%M&#39;</span><span class="p">)))</span>
+    <span class="n">local</span><span class="p">(</span><span class="s1">&#39;git push&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">cd</span><span class="p">(</span><span class="n">dest_path</span><span class="p">):</span>
+        <span class="n">run</span><span class="p">(</span><span class="s2">&quot;git pull origin master&quot;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>(<code>dest_path</code> should already be defined in <code>fabfile.py</code> for you, but you'll need to <code>import time</code>.)</p>
+<p>I could've made it simpler by <code>rsync</code>ing the output directory, but I knew that I was going to keep a backup of 
+everything on GitHub, and I like the idea of keeping the entire project source on the remote server in case I ever want 
+to SSH in and make changes directly.</p>
+                <div class="clear"></div>
+
+                <div class="info">
+                    <a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html">posted at 20:43</a>
+                    &nbsp;&middot;&nbsp;<a href="http://localhost:8000/category/automation.html" rel="tag">Automation</a>
+                </div>
+		<a href="http://localhost:8000/publishing-and-deploying-for-pelican-with-fabric.html#disqus_thread">Click to read and post comments</a>
+            </article>
+
+            <div class="clear"></div>
+            <footer>
+                <p>
+                <a href="https://github.com/jody-frankowski/blue-penguin">Blue Penguin</a> Theme
+                &middot;
+                Powered by <a href="http://getpelican.com">Pelican</a>
+            </footer>
+        </div>
+        <div class="clear"></div>
+    </div>
+</body>
+</html>
